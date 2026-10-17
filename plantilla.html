@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITULO__ — Recorrido inmersivo</title>
+<!--
+  WEB GENERADA AUTOMÁTICAMENTE por generador.py
+  Cómo funciona:
+  - El scroll está "cosido" al vídeo (scrub): bajar = avanzar el vídeo.
+  - En cada marca, el vídeo se CONGELA (meseta) y aparece la tarjeta de la
+    habitación: es la "fotografía estática" del recorrido.
+  - Entre marcas, el vídeo avanza de forma continua: es el desplazamiento
+    real por la casa, sin saltos.
+-->
+<style>
+  :root{ --crema:#f4efe7; --tinta:#14120e; --arena:#d8cfc0; --dorado:#c9a06a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--tinta);color:var(--crema);
+       font-family:Georgia,'Times New Roman',serif;overflow-x:hidden}
+  .kicker{font-family:Arial,sans-serif;letter-spacing:.45em;font-size:11px;
+          color:var(--arena);text-transform:uppercase}
+  .intro{min-height:78vh;min-height:78svh;display:flex;flex-direction:column;
+         justify-content:center;padding:10vh 6vw}
+  .intro h1{font-size:clamp(40px,8vw,104px);font-weight:400;line-height:1.04;margin:18px 0}
+  .intro h1 em{font-style:italic;color:var(--dorado)}
+  .intro p{font-family:Arial,sans-serif;color:var(--arena);max-width:560px;line-height:1.7;font-size:15px}
+  .intro .meta{margin-top:22px;font-family:Arial,sans-serif;font-size:12px;letter-spacing:.2em;
+               color:var(--dorado);text-transform:uppercase}
+  .cue{margin-top:34px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:.35em;
+       color:var(--dorado);animation:flota 2.2s ease-in-out infinite}
+  @keyframes flota{50%{transform:translateY(8px)}}
+  /* ── TOUR ── */
+  .tour{position:relative;height:100vh;height:100svh;overflow:hidden;background:#000}
+  .tour video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .veil{position:absolute;inset:0;pointer-events:none;
+        background:linear-gradient(to top,rgba(0,0,0,.5),rgba(0,0,0,0) 45%)}
+  .card{position:absolute;left:6vw;bottom:15vh;z-index:3;max-width:520px;
+        opacity:0;visibility:hidden;will-change:transform,opacity}
+  .card h2{font-size:clamp(30px,4.6vw,58px);font-weight:400;margin:10px 0 8px;
+           text-shadow:0 2px 24px rgba(0,0,0,.7)}
+  .card p{font-family:Arial,sans-serif;font-size:14px;color:var(--arena);line-height:1.6;
+          text-shadow:0 1px 12px rgba(0,0,0,.7)}
+  .card ul{font-family:Arial,sans-serif;font-size:13px;color:var(--arena);line-height:2;
+           list-style:none;margin-top:12px}
+  .card li::before{content:'— ';color:var(--dorado)}
+  .hud{position:absolute;inset:0;z-index:5;pointer-events:none;display:flex;
+       flex-direction:column;justify-content:space-between;padding:26px 6vw 30px}
+  .hud-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .hud-room{font-size:clamp(20px,3vw,34px);font-style:italic;margin-top:8px;
+            text-shadow:0 2px 18px rgba(0,0,0,.6)}
+  .hud-count{font-family:Arial,sans-serif;font-size:12px;letter-spacing:.3em;
+             color:var(--arena);text-align:right}
+  .hud-count b{color:var(--dorado);font-size:20px;letter-spacing:0}
+  .rail{height:2px;background:rgba(244,239,231,.25);border-radius:2px;position:relative}
+  .rail-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--dorado);border-radius:2px}
+  .dots{display:flex;justify-content:space-between;margin-top:12px;gap:8px}
+  .dot{font-family:Arial,sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+       color:rgba(216,207,192,.45);transition:color .3s;white-space:nowrap;overflow:hidden;
+       text-overflow:ellipsis}
+  .dot.on{color:var(--dorado)}
+  .loader{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+          background:#0d0b08;font-family:Arial,sans-serif;letter-spacing:.3em;font-size:12px;color:var(--arena)}
+  /* ── CTA ── */
+  .cta{min-height:90vh;min-height:90svh;display:flex;flex-direction:column;align-items:center;
+       justify-content:center;text-align:center;padding:10vh 6vw}
+  .cta h2{font-size:clamp(34px,6vw,72px);font-weight:400;max-width:820px;line-height:1.12}
+  .cta h2 em{font-style:italic;color:var(--dorado)}
+  .btn{display:inline-block;margin-top:32px;background:#25d366;color:#0b2e16;
+       font-family:Arial,sans-serif;font-weight:700;font-size:16px;padding:18px 44px;
+       border-radius:999px;text-decoration:none;box-shadow:0 12px 40px rgba(37,211,102,.35)}
+  .cta small{display:block;margin-top:20px;font-family:Arial,sans-serif;color:var(--arena);
+             letter-spacing:.2em;font-size:11px;text-transform:uppercase}
+  footer{padding:24px;text-align:center;font-family:Arial,sans-serif;font-size:12px;color:#6f6656;background:#0d0b08}
+  /* ── Fallback: galería de fotos (sin movimiento / si falla el vídeo) ── */
+  .fallback{padding:10vh 6vw;background:var(--tinta)}
+  .fallback h2{font-size:clamp(28px,4vw,48px);font-weight:400;margin-bottom:30px}
+  .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .fgrid figure{background:#1e1b15;border-radius:12px;overflow:hidden}
+  .fgrid img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+  .fgrid figcaption{padding:16px;font-family:Arial,sans-serif;font-size:14px}
+  .fgrid figcaption small{display:block;color:#8a7f6d;margin-top:6px;letter-spacing:.1em}
+  @media (prefers-reduced-motion:reduce){ .cue{animation:none} }
+  @media (max-width:640px){ .dot{font-size:8px;letter-spacing:.06em} }
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <div class="kicker">Recorrido inmersivo</div>
+  <h1>__TITULO__</h1>
+  <p>Desliza para avanzar por la vivienda como si caminaras en ella.
+  En cada estancia el recorrido se detiene en su fotografía.</p>
+  <div class="meta" id="metaInfo"></div>
+  <div class="cue">DESLIZA PARA EMPEZAR ↓</div>
+</header>
+
+<section class="tour" id="tour">
+  <video id="v" src="__VIDEO__" poster="__POSTER__" muted playsinline preload="auto"></video>
+  <div class="veil"></div>
+  <div id="cards"></div>
+  <div class="hud">
+    <div class="hud-top">
+      <div><div class="kicker">Recorrido</div><div class="hud-room" id="hudRoom">—</div></div>
+      <div class="hud-count"><b id="hudNum">--</b> / <span id="hudTotal">--</span></div>
+    </div>
+    <div>
+      <div class="rail"><div class="rail-fill" id="railFill"></div></div>
+      <div class="dots" id="dots"></div>
+    </div>
+  </div>
+  <div class="loader" id="loader">CARGANDO RECORRIDO…</div>
+</section>
+
+<section class="fallback" id="fallback" hidden>
+  <div class="kicker">Fotografías del recorrido</div>
+  <h2>Las estancias</h2>
+  <div class="fgrid" id="fgrid"></div>
+</section>
+
+<section class="cta">
+  <div class="kicker">Visita privada</div>
+  <h2>Lo has recorrido <em>antes</em> de venir a verlo.</h2>
+  <a class="btn" href="https://wa.me/__WHATSAPP__?text=Quiero%20visitar%20__TITULO__">Pedir visita por WhatsApp</a>
+  <small>Respuesta en menos de 24 h</small>
+</section>
+
+<footer>Recorrido interactivo · Las imágenes son fotogramas del vídeo del recorrido</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+/* Marcas generadas por generador.py: [{t, nombre, descripcion, detalles[], foto}] */
+const MARCAS = __MARCADORES__;
+const video  = document.getElementById('v');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── Fallback: galería de fotos estáticas ── */
+function showFallback(){
+  document.getElementById('tour').style.display = 'none';
+  const fb = document.getElementById('fallback');
+  fb.hidden = false;
+  fb.querySelector('#fgrid').innerHTML = MARCAS.map((m,i) =>
+    `<figure><img src="${m.foto}" alt="${m.nombre}" loading="lazy">
+     <figcaption><b>${String(i+1).padStart(2,'0')} · ${m.nombre}</b>
+     <small>${m.descripcion||''}</small></figcaption></figure>`).join('');
+  document.getElementById('loader').style.display = 'none';
+}
+if (reduceMotion) showFallback();
+
+/* ── Construcción del mapa scroll → tiempo de vídeo ──
+   Cada marca tiene una MESETA (el vídeo se congela = "fotografía") y entre
+   marcas el vídeo AVANZA (el desplazamiento real por la casa). Unidades
+   arbitrarias; el pin dura U*110 vh de scroll. */
+const DWELL = 1.2, TRAVEL = 1.0, INTRO = 0.8, OUTRO = 0.8;
+let DUR = 0, U = 0, keys = [], mesetas = [];
+
+function buildMap(){
+  DUR = video.duration;
+  keys = [[0,0],[INTRO, MARCAS[0].t]];
+  mesetas = [];
+  let u = INTRO;
+  MARCAS.forEach((m,i) => {
+    const a = u;
+    keys.push([u+DWELL, m.t]); u += DWELL;      // meseta: foto fija
+    mesetas.push([a, u]);
+    const v1  = (i < MARCAS.length-1) ? MARCAS[i+1].t : DUR;
+    const seg = (i < MARCAS.length-1) ? TRAVEL : OUTRO;
+    keys.push([u+seg, v1]); u += seg;           // avance: vídeo en marcha
+  });
+  U = u;
+}
+function videoTimeAt(uu){
+  for (let k = 0; k < keys.length-1; k++){
+    const u0 = keys[k][0], v0 = keys[k][1], u1 = keys[k+1][0], v1 = keys[k+1][1];
+    if (uu <= u1 || k === keys.length-2){
+      const f = Math.min(1, Math.max(0, (uu-u0) / Math.max(1e-6, u1-u0)));
+      return v0 + f*(v1-v0);
+    }
+  }
+  return keys[keys.length-1][1];
+}
+
+/* ── Tarjetas + HUD ── */
+const cardsBox = document.getElementById('cards');
+MARCAS.forEach((m,i) => {
+  const d = document.createElement('div');
+  d.className = 'card'; d.id = 'card'+i;
+  d.innerHTML = `<div class="kicker">Estancia ${String(i+1).padStart(2,'0')}</div>
+    <h2>${m.nombre}</h2><p>${m.descripcion||''}</p>` +
+    (m.detalles && m.detalles.length
+      ? `<ul>${m.detalles.map(x=>`<li>${x}</li>`).join('')}</ul>` : '');
+  cardsBox.appendChild(d);
+});
+const cards = MARCAS.map((_,i) => document.getElementById('card'+i));
+const dotsBox = document.getElementById('dots');
+MARCAS.forEach((m,i) => {
+  const s = document.createElement('span');
+  s.className = 'dot' + (i===0 ? ' on' : '');
+  s.textContent = m.nombre;
+  dotsBox.appendChild(s);
+});
+const dots = [...dotsBox.children];
+document.getElementById('hudTotal').textContent = String(MARCAS.length).padStart(2,'0');
+document.getElementById('metaInfo').textContent =
+  `${MARCAS.length} estancias · recorrido continuo`;
+
+let cur = -1;
+function setBeat(i){
+  if (i === cur) return; cur = i;
+  document.getElementById('hudRoom').textContent = MARCAS[i].nombre;
+  document.getElementById('hudNum').textContent = String(i+1).padStart(2,'0');
+  dots.forEach((d,j) => d.classList.toggle('on', j <= i));
+}
+
+function render(p){
+  const u = p * U;
+  const vt = videoTimeAt(u);
+  try { if (Math.abs(video.currentTime - vt) > 1/30) video.currentTime = vt; } catch(e){}
+  MARCAS.forEach((m,i) => {
+    const a = mesetas[i][0], b = mesetas[i][1], el = cards[i];
+    let o = 0;
+    if (u >= a && u <= b){
+      const f = (u-a)/(b-a);
+      o = f < 0.18 ? f/0.18 : (f > 0.82 ? Math.max(0,(1-f)/0.18) : 1);
+    }
+    el.style.opacity = o.toFixed(3);
+    el.style.transform = `translateY(${(1-o)*30}px)`;
+    el.style.visibility = o > 0.02 ? 'visible' : 'hidden';
+  });
+  let beat = 0;
+  mesetas.forEach((ms,i) => { if (u >= ms[0]) beat = i; });
+  setBeat(beat);
+  document.getElementById('railFill').style.width = (p*100).toFixed(2)+'%';
+}
+
+if (!reduceMotion){
+  video.addEventListener('loadedmetadata', () => {
+    buildMap();
+    document.getElementById('loader').style.display = 'none';
+    setBeat(0); render(0);
+    ScrollTrigger.create({
+      trigger:'#tour', start:'top top',
+      end: () => '+=' + Math.round(U*110) + '%',
+      scrub: 1, pin: true, anticipatePin: 1,
+      onUpdate: self => render(self.progress)
+    });
+  });
+  video.addEventListener('error', showFallback, true);
+}
+</script>
+</body>
+</html>

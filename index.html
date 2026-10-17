@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudio de recorridos — del vídeo a la web inmersiva</title>
+<meta name="description" content="Sube el vídeo del recorrido, marca cada habitación y genera la web inmersiva. Todo en tu navegador, sin subir nada a ningún servidor.">
+<!--
+  ESTUDIO ONLINE — funciona 100% en tu navegador, sin servidor:
+  1. Subes el vídeo del recorrido (se queda en tu dispositivo, no se sube a nada).
+  2. Marcas el fotograma exacto de cada habitación.
+  3. "Generar web": extrae las fotografías (fotograma exacto por marca) y
+     empaqueta vídeo + fotos + web generada en un ZIP listo para publicar.
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{ --bg:#14120e; --panel:#1e1b15; --crema:#f4efe7; --arena:#8a7f6d;
+         --dorado:#c9a06a; --linea:#33302a; --ok:#7bc98a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--crema);font-family:Arial,sans-serif;
+       padding:28px 20px;max-width:1020px;margin:0 auto}
+  header{text-align:center;margin-bottom:8px}
+  h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(26px,5vw,40px)}
+  h1 em{color:var(--dorado);font-style:italic}
+  .sub{color:var(--arena);font-size:14px;margin:10px auto 26px;max-width:640px;line-height:1.7}
+  .priv{font-size:12px;color:var(--ok);letter-spacing:.06em}
+  .paso{background:var(--panel);border:1px solid var(--linea);border-radius:16px;
+        padding:22px;margin-bottom:18px}
+  .paso h2{font-family:Georgia,serif;font-weight:400;font-size:20px;margin-bottom:6px}
+  .paso h2 .n{display:inline-block;background:var(--dorado);color:#1c1a16;width:28px;height:28px;
+              border-radius:50%;text-align:center;line-height:28px;font-size:15px;margin-right:10px;
+              font-family:Arial,sans-serif;font-weight:700}
+  .paso p.d{color:var(--arena);font-size:13px;line-height:1.6;margin-bottom:14px}
+  .drop{border:2px dashed var(--linea);border-radius:14px;padding:30px;text-align:center;
+        cursor:pointer;transition:border-color .2s;font-size:15px}
+  .drop:hover{border-color:var(--dorado)}
+  .drop input{display:none}
+  .drop small{display:block;color:var(--arena);margin-top:8px;font-size:12px}
+  video#v{width:100%;border-radius:12px;background:#000;display:none;margin-bottom:12px;max-height:50vh}
+  .vinfo{display:none;font-size:12px;color:var(--arena);margin-bottom:12px;font-family:monospace}
+  .vinfo.on{display:block}
+  .toolbar{display:none;gap:10px;flex-wrap:wrap}
+  .toolbar.on{display:flex}
+  button{background:var(--dorado);color:#1c1a16;border:none;font-weight:700;font-size:14px;
+         padding:13px 24px;border-radius:999px;cursor:pointer;font-family:Arial,sans-serif}
+  button.ghost{background:transparent;color:var(--crema);border:1px solid var(--linea)}
+  button.danger{background:transparent;color:#e08080;border:1px solid #5a3434;
+                padding:8px 14px;font-size:13px}
+  button.big{font-size:16px;padding:16px 40px;width:100%;margin-top:6px}
+  button:disabled{opacity:.45;cursor:wait}
+  button:hover:not(:disabled){filter:brightness(1.08)}
+  #lista{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+  .marca{background:#0d0b08;border:1px solid var(--linea);border-radius:12px;padding:14px;
+         display:grid;grid-template-columns:92px 1fr auto;gap:12px;align-items:start}
+  .foto-mini{width:92px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000}
+  .marca .t{font-family:monospace;font-size:12px;color:var(--dorado);margin-bottom:8px}
+  .marca input[type=text],.marca textarea{width:100%;background:var(--panel);
+      border:1px solid var(--linea);color:var(--crema);border-radius:8px;
+      padding:10px 12px;font-size:14px;font-family:Arial,sans-serif}
+  .marca textarea{resize:vertical;min-height:48px;margin-top:8px}
+  .marca input[type=number]{width:86px;background:var(--panel);border:1px solid var(--linea);
+      color:var(--dorado);border-radius:8px;padding:8px;font-family:monospace;font-size:13px}
+  .marca .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .marca .row label{font-size:11px;color:var(--arena);letter-spacing:.08em;text-transform:uppercase}
+  .empty{color:var(--arena);text-align:center;padding:24px;border:1px dashed var(--linea);
+         border-radius:12px;font-size:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid2 label{font-size:11px;color:var(--arena);letter-spacing:.08em;text-transform:uppercase;
+               display:block;margin-bottom:6px}
+  .grid2 input{width:100%;background:#0d0b08;border:1px solid var(--linea);color:var(--crema);
+               border-radius:8px;padding:12px;font-size:15px}
+  #progreso{display:none;margin-top:16px}
+  #progreso.on{display:block}
+  .bar{height:10px;background:#0d0b08;border-radius:6px;overflow:hidden;border:1px solid var(--linea)}
+  .bar i{display:block;height:100%;width:0%;background:var(--dorado);transition:width .2s}
+  #plog{font-family:monospace;font-size:12px;color:var(--arena);margin-top:10px;line-height:1.8;
+        max-height:150px;overflow-y:auto}
+  #plog .ok{color:var(--ok)}
+  #descargaZip{display:none;margin-top:14px;text-align:center}
+  #descargaZip.on{display:block}
+  #descargaZip a{display:inline-block;background:var(--ok);color:#0d2812;font-weight:700;
+                 padding:16px 40px;border-radius:999px;text-decoration:none;font-size:16px}
+  .hint{font-size:12px;color:var(--arena);margin-top:14px;line-height:1.7}
+  .hint b{color:var(--crema)}
+  footer{margin-top:34px;text-align:center;color:var(--arena);font-size:12px;line-height:1.8}
+  footer a{color:var(--dorado)}
+  @media (max-width:640px){ .marca{grid-template-columns:1fr} .foto-mini{width:100%} .grid2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Estudio <em>de recorridos</em></h1>
+  <p class="sub">Del vídeo del recorrido a la web inmersiva, en 3 pasos.<br>
+  <span class="priv">🔒 Todo ocurre en tu navegador: el vídeo no se sube a ningún servidor.</span></p>
+</header>
+
+<!-- PASO 1 -->
+<div class="paso">
+  <h2><span class="n">1</span>Sube el vídeo del recorrido</h2>
+  <p class="d">Un solo plano continuo, sin cortes: entra por la puerta y camina por la casa.
+  Vale el mp4/mov que graba tu móvil.</p>
+  <label class="drop" id="drop">📂 Elegir vídeo
+    <small>mp4 · mov · webm — se queda en tu dispositivo</small>
+    <input type="file" id="file" accept="video/*">
+  </label>
+  <video id="v" controls playsinline muted></video>
+  <div class="vinfo" id="vinfo"></div>
+</div>
+
+<!-- PASO 2 -->
+<div class="paso">
+  <h2><span class="n">2</span>Marca cada habitación</h2>
+  <p class="d">Muévete al fotograma exacto de cada estancia y márcalo. Ahí es donde la
+  web congelará el vídeo con su fotografía.</p>
+  <div class="toolbar" id="toolbar">
+    <button id="marcar">📍 Marcar habitación aquí (<span id="tc">0.0</span>s)</button>
+    <button class="ghost" id="cargarJson">📂 Cargar marcas.json</button>
+    <input type="file" id="jsonFile" accept=".json,application/json" style="display:none">
+    <button class="ghost" id="descargarJson">⬇ Marcas.json</button>
+  </div>
+  <div id="lista" style="margin-top:0"></div>
+  <p class="hint"><b>Truco:</b> pausa el vídeo y usa <b>,</b> y <b>.</b> para ir
+  fotograma a fotograma y clavar la marca.</p>
+</div>
+
+<!-- PASO 3 -->
+<div class="paso">
+  <h2><span class="n">3</span>Genera la web</h2>
+  <p class="d">Extraigo la fotografía exacta de cada marca y empaqueto todo
+  (vídeo + fotos + web) en un ZIP listo para publicar.</p>
+  <div class="grid2" style="margin-bottom:14px">
+    <div><label>Título de la web</label><input id="titulo" value="Dúplex Mirador"></div>
+    <div><label>WhatsApp (con prefijo, sin +)</label><input id="wa" value="34600000000"></div>
+  </div>
+  <button class="big" id="generar" disabled>🎬 Generar la web inmersiva</button>
+  <div id="progreso">
+    <div class="bar"><i id="barfill"></i></div>
+    <div id="plog"></div>
+  </div>
+  <div id="descargaZip"></div>
+</div>
+
+<footer>
+  Hecho para aprender · El ZIP contiene una web estática: súbela a Netlify, Vercel o GitHub Pages.<br>
+  ¿Vídeos muy largos (+5 min)? Córtalos antes: el navegador los procesa en memoria.
+</footer>
+
+<script>
+/* ═══════════════ estado ═══════════════ */
+const v = document.getElementById('v');
+const fileInput = document.getElementById('file');
+let videoFile = null, videoURL = null;
+let marcas = [];   // {t, nombre, descripcion, detalles[], _thumb}
+
+/* ═══════════════ utilidades ═══════════════ */
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function slug(s){ return (s||'propiedad').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'propiedad'; }
+function descargarBlob(blob, nombre){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a);   // necesario en Safari / visores estrictos
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+function plog(msg, ok){
+  const d = document.createElement('div');
+  if (ok) d.className = 'ok';
+  d.textContent = msg;
+  document.getElementById('plog').appendChild(d);
+  d.scrollIntoView({block:'nearest'});
+}
+function progreso(f){ document.getElementById('barfill').style.width = Math.round(f*100)+'%'; }
+
+/* ═══════════════ paso 1: vídeo ═══════════════ */
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0]; if (!f) return;
+  videoFile = f;
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(f);
+  v.src = videoURL;
+  v.style.display = 'block';
+  v.onloadedmetadata = () => {
+    const vi = document.getElementById('vinfo');
+    vi.textContent = `${f.name} · ${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)}s · ${(f.size/1048576).toFixed(1)} MB`;
+    vi.classList.add('on');
+    document.getElementById('toolbar').classList.add('on');
+    actualizarBoton();
+  };
+});
+v.addEventListener('timeupdate', () => {
+  document.getElementById('tc').textContent = v.currentTime.toFixed(1);
+});
+
+/* ═══════════════ captura de fotograma exacto (sin ffmpeg) ═══════════════ */
+function capturarFotograma(t, maxAncho){
+  return new Promise((resolve, reject) => {
+    const onSeek = () => {
+      v.removeEventListener('seeked', onSeek);
+      setTimeout(() => {
+        try {
+          const w = v.videoWidth, h = v.videoHeight;
+          const escala = maxAncho && w > maxAncho ? maxAncho/w : 1;
+          const c = document.createElement('canvas');
+          c.width = Math.round(w*escala); c.height = Math.round(h*escala);
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          c.toBlob(b => b ? resolve(b) : reject(new Error('canvas vacío')),
+                   'image/jpeg', 0.88);
+        } catch(e){ reject(e); }
+      }, 150);
+    };
+    v.addEventListener('seeked', onSeek);
+    // si ya estamos en ese tiempo, forzar el seek igualmente
+    if (Math.abs(v.currentTime - t) < 0.001){ v.currentTime = Math.max(0, t - 0.001); }
+    v.currentTime = t;
+    setTimeout(() => reject(new Error('seek timeout')), 15000);
+  });
+}
+
+/* ═══════════════ paso 2: marcas ═══════════════ */
+document.getElementById('marcar').addEventListener('click', async () => {
+  if (!videoFile) return;
+  const t = Math.round(v.currentTime*10)/10;
+  const thumb = await capturarFotograma(t, 320).catch(()=>null);
+  const thumbURL = thumb ? URL.createObjectURL(thumb) : null;
+  marcas.push({ t, nombre:'', descripcion:'', detalles:[], _thumb: thumbURL });
+  renderMarcas(); actualizarBoton();
+});
+function renderMarcas(){
+  const lista = document.getElementById('lista');
+  marcas.sort((a,b) => a.t - b.t);
+  if (!marcas.length){
+    lista.innerHTML = '<div class="empty">Sin marcas todavía. Reproduce el vídeo y marca cada estancia.</div>';
+    return;
+  }
+  lista.innerHTML = '';
+  marcas.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'marca';
+    el.innerHTML = `
+      ${m._thumb ? `<img class="foto-mini" src="${m._thumb}" alt="">` : '<div></div>'}
+      <div>
+        <div class="t">⏱ ${m.t.toFixed(1)}s · marca ${String(i+1).padStart(2,'0')}</div>
+        <div class="row"><label>Nombre</label>
+          <input type="text" data-k="nombre" value="${esc(m.nombre)}" placeholder="El salón"></div>
+        <div class="row"><label>Segundos</label>
+          <input type="number" data-k="t" step="0.1" min="0" value="${m.t}"></div>
+        <input type="text" data-k="descripcion" value="${esc(m.descripcion)}" placeholder="Descripción corta">
+        <textarea data-k="detalles" placeholder="Detalles, uno por línea">${esc((m.detalles||[]).join('\n'))}</textarea>
+      </div>
+      <button class="danger" data-del="${i}">✕</button>`;
+    el.querySelectorAll('[data-k]').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const k = inp.dataset.k;
+        if (k === 't') m.t = Math.max(0, parseFloat(inp.value) || 0);
+        else if (k === 'detalles') m.detalles = inp.value.split('\n').map(s=>s.trim()).filter(Boolean);
+        else m[k] = inp.value;
+      });
+      inp.addEventListener('change', () => { renderMarcas(); actualizarBoton(); });
+    });
+    el.querySelector('[data-del]').addEventListener('click', () => { marcas.splice(i,1); renderMarcas(); actualizarBoton(); });
+    lista.appendChild(el);
+  });
+}
+function actualizarBoton(){
+  document.getElementById('generar').disabled = !(videoFile && marcas.length);
+}
+document.getElementById('descargarJson').addEventListener('click', () => {
+  if (!marcas.length) return alert('Marca al menos una habitación primero.');
+  const limpio = marcas.map(({t,nombre,descripcion,detalles}) =>
+    ({ t, nombre: nombre || `Estancia ${t}s`, descripcion, detalles }));
+  descargarBlob(new Blob([JSON.stringify(limpio, null, 2)], {type:'application/json'}), 'marcas.json');
+});
+document.getElementById('cargarJson').addEventListener('click', () =>
+  document.getElementById('jsonFile').click());
+document.getElementById('jsonFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { try { marcas = JSON.parse(r.result); renderMarcas(); actualizarBoton(); }
+                     catch(err){ alert('JSON no válido'); } };
+  r.readAsText(f);
+});
+
+/* ═══════════════ paso 3: generar ═══════════════ */
+document.getElementById('generar').addEventListener('click', async () => {
+  const btn = document.getElementById('generar');
+  const titulo = document.getElementById('titulo').value.trim() || 'Mi propiedad';
+  const wa = document.getElementById('wa').value.replace(/\D/g,'') || '34600000000';
+  btn.disabled = true;
+  document.getElementById('progreso').classList.add('on');
+  document.getElementById('descargaZip').classList.remove('on');
+  document.getElementById('plog').innerHTML = '';
+  try {
+    if (typeof JSZip === 'undefined') throw new Error('No se pudo cargar JSZip (¿sin internet?).');
+    const dur = v.duration || 0;
+    for (const m of marcas)
+      if (!(m.t >= 0 && m.t <= dur)) throw new Error(`La marca "${m.nombre||m.t}s" está fuera del vídeo (${dur.toFixed(1)}s).`);
+    const zip = new JSZip();
+    plog(`Vídeo: ${dur.toFixed(1)}s · ${marcas.length} marcas`);
+    // 1) fotografías: fotograma exacto por marca
+    const fotos = [];
+    for (let i = 0; i < marcas.length; i++){
+      const m = marcas[i];
+      plog(`▸ Foto ${i+1}/${marcas.length} — t=${m.t.toFixed(1)}s (${m.nombre||'sin nombre'})…`);
+      const blob = await capturarFotograma(m.t, 1600);
+      const nombre = `foto-${String(i+1).padStart(2,'0')}.jpg`;
+      zip.file(nombre, blob);
+      fotos.push(nombre);
+      progreso((i+1) / (marcas.length + 2));
+    }
+    plog('✓ Fotografías extraídas', true);
+    // 2) vídeo original (tal cual lo grabaste)
+    plog('▸ Añadiendo vídeo…');
+    zip.file('recorrido.mp4', videoFile);
+    progreso((marcas.length + 1) / (marcas.length + 2));
+    // 3) web generada desde la plantilla
+    plog('▸ Generando index.html…');
+    const tpl = await (await fetch('plantilla.html')).text();
+    if (!tpl.includes('__MARCADORES__')) throw new Error('plantilla.html no encontrada o corrupta.');
+    const datos = marcas.map((m, i) => ({
+      t: m.t, nombre: m.nombre || `Estancia ${i+1}`,
+      descripcion: m.descripcion || '', detalles: m.detalles || [], foto: fotos[i]
+    }));
+    const html = tpl
+      .replaceAll('__TITULO__', titulo)
+      .replaceAll('__VIDEO__', 'recorrido.mp4')
+      .replaceAll('__POSTER__', fotos[0])
+      .replaceAll('__WHATSAPP__', wa)
+      .replaceAll('__MARCADORES__', JSON.stringify(datos));
+    zip.file('index.html', html);
+    progreso(1);
+    // 4) ZIP
+    plog('▸ Comprimiendo…');
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' },
+      meta => progreso(0.9 + meta.percent/1000));
+    const nombreZip = `web-${slug(titulo)}.zip`;
+    const box = document.getElementById('descargaZip');
+    box.innerHTML = '';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = nombreZip;
+    a.textContent = `⬇ Descargar ${nombreZip}`;
+    box.appendChild(a);
+    box.classList.add('on');
+    plog(`✓ Listo: ${nombreZip} — súbelo a Netlify/Vercel tal cual`, true);
+  } catch(e){
+    plog('✕ ' + (e && e.message || e));
+  } finally {
+    btn.disabled = false;
+  }
+});
+renderMarcas();
+</script>
+</body>
+</html>
