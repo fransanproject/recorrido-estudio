@@ -90,7 +90,7 @@
 <body>
 
 <header>
-  <h1>Estudio <em>de recorridos</em></h1>
+  <h1>Estudio <em>de recorridos</em> <span style="font-size:12px;color:#8a7f6d;font-family:Arial,sans-serif;vertical-align:middle">v3</span></h1>
   <p class="sub">Del vídeo del recorrido a la web inmersiva, en 3 pasos.<br>
   <span class="priv">🔒 Todo ocurre en tu navegador: el vídeo no se sube a ningún servidor.</span></p>
 </header>
@@ -185,13 +185,23 @@ fileInput.addEventListener('change', () => {
   v.onloadedmetadata = () => {
     const vi = document.getElementById('vinfo');
     const ext = (f.name.split('.').pop() || '').toLowerCase();
-    let aviso = '';
-    if (ext === 'mov')
-      aviso = ' · ⚠️ .mov: en iPhone graba en Ajustes → Cámara → Formatos → "Más compatible" para que se vea en todos los navegadores';
-    vi.textContent = `${f.name} · ${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)}s · ${(f.size/1048576).toFixed(1)} MB${aviso}`;
+    vi.textContent = `${f.name} · ${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)}s · ${(f.size/1048576).toFixed(1)} MB · comprobando lectura…`;
     vi.classList.add('on');
     document.getElementById('toolbar').classList.add('on');
     actualizarBoton();
+    // prueba automática: ¿este navegador puede leer y extraer fotogramas del vídeo?
+    (async () => {
+      try {
+        await capturarFotograma(Math.min(1, v.duration * 0.25), 160);
+        vi.textContent += ' · ✓ reproducible en este navegador';
+        v.currentTime = 0;
+      } catch(e) {
+        vi.textContent += ' · ✕ ESTE NAVEGADOR NO PUEDE LEER EL VÍDEO — prueba en Safari/Chrome de escritorio o convierte el archivo a mp4 (H.264)';
+        vi.style.color = '#e08080';
+      }
+      if (ext === 'mov')
+        vi.textContent += ' · (los .mov de iPhone fallan fuera de Safari: graba en Ajustes → Cámara → Formatos → "Más compatible")';
+    })();
   };
 });
 v.addEventListener('timeupdate', () => {
@@ -323,7 +333,7 @@ document.getElementById('generar').addEventListener('click', async () => {
     progreso((marcas.length + 1) / (marcas.length + 2));
     // 3) web generada desde la plantilla
     plog('▸ Generando index.html…');
-    const tpl = await (await fetch('plantilla.html')).text();
+    const tpl = await (await fetch('plantilla.html?v=3')).text();
     if (!tpl.includes('__MARCADORES__')) throw new Error('plantilla.html no encontrada o corrupta.');
     const datos = marcas.map((m, i) => ({
       t: m.t, nombre: m.nombre || `Estancia ${i+1}`,

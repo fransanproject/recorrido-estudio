@@ -71,8 +71,8 @@
           font-family:monospace;font-size:11px;color:rgba(244,239,231,.75);
           background:rgba(0,0,0,.45);padding:6px 10px;border-radius:999px}
   .loader{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
-          background:#0d0b08;font-family:Arial,sans-serif;letter-spacing:.3em;font-size:12px;
-          color:var(--arena);text-align:center;padding:0 8vw;line-height:2}
+          background:#0d0b08;font-family:Arial,sans-serif;letter-spacing:.25em;font-size:13px;
+          color:#cfc4ae;text-align:center;padding:0 8vw;line-height:2.2}
   .errbox{position:absolute;inset:0;z-index:11;display:none;align-items:center;justify-content:center;
           background:#0d0b08;padding:8vw;text-align:center}
   .errbox div{max-width:560px}
@@ -130,7 +130,7 @@
       </div>
     </div>
     <div class="status" id="status">cargando…</div>
-    <div class="loader" id="loader">CARGANDO RECORRIDO…</div>
+    <div class="loader" id="loader"><div>CARGANDO RECORRIDO…<br><span id="loadmsg" style="letter-spacing:.1em;font-size:12px">conectando con el vídeo</span></div></div>
     <div class="errbox" id="errbox"><div>
       <h3>No se pudo cargar el vídeo</h3>
       <p id="errmsg"></p>
@@ -285,16 +285,24 @@ if (!reduceMotion){
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
 
+  const loadmsg = document.getElementById('loadmsg');
+  const t0 = Date.now();
+  const loadTick = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    if (loadmsg) loadmsg.textContent = `esperando al vídeo… ${s}s`;
+  }, 1000);
+
   const metaTimer = setTimeout(() => {
+    clearInterval(loadTick);
     if (!DUR) showError(
-      `El vídeo <code>${VIDEO_FILE}</code> no se pudo cargar.<br><br>` +
+      `El vídeo <code>${VIDEO_FILE}</code> no se pudo cargar tras 12 segundos.<br><br>` +
       `Causas habituales: el archivo no está junto al index.html, o el formato ` +
       `no lo reproduce tu navegador (los .mov de iPhone fallan fuera de Safari; ` +
       `graba en Ajustes → Cámara → Formatos → <b>Más compatible</b> o convierte a mp4).`);
-  }, 20000);
+  }, 12000);
 
   video.addEventListener('loadedmetadata', () => {
-    clearTimeout(metaTimer);
+    clearTimeout(metaTimer); clearInterval(loadTick);
     if (!isFinite(video.duration) || video.duration <= 0){
       showError(`El vídeo <code>${VIDEO_FILE}</code> no tiene duración válida.`);
       return;
@@ -305,7 +313,7 @@ if (!reduceMotion){
     status.textContent = 'listo · desliza';
   });
   video.addEventListener('error', () => {
-    clearTimeout(metaTimer);
+    clearTimeout(metaTimer); clearInterval(loadTick);
     showError(`El vídeo <code>${VIDEO_FILE}</code> no se pudo reproducir en este navegador.`);
   }, true);
 }
