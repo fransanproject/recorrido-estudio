@@ -184,7 +184,11 @@ fileInput.addEventListener('change', () => {
   v.style.display = 'block';
   v.onloadedmetadata = () => {
     const vi = document.getElementById('vinfo');
-    vi.textContent = `${f.name} · ${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)}s · ${(f.size/1048576).toFixed(1)} MB`;
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    let aviso = '';
+    if (ext === 'mov')
+      aviso = ' · ⚠️ .mov: en iPhone graba en Ajustes → Cámara → Formatos → "Más compatible" para que se vea en todos los navegadores';
+    vi.textContent = `${f.name} · ${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)}s · ${(f.size/1048576).toFixed(1)} MB${aviso}`;
     vi.classList.add('on');
     document.getElementById('toolbar').classList.add('on');
     actualizarBoton();
@@ -311,9 +315,11 @@ document.getElementById('generar').addEventListener('click', async () => {
       progreso((i+1) / (marcas.length + 2));
     }
     plog('✓ Fotografías extraídas', true);
-    // 2) vídeo original (tal cual lo grabaste)
-    plog('▸ Añadiendo vídeo…');
-    zip.file('recorrido.mp4', videoFile);
+    // 2) vídeo original (con su extensión real: no renombramos un .mov a .mp4)
+    const ext = (videoFile.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp4';
+    const videoNombre = `recorrido.${ext}`;
+    plog(`▸ Añadiendo vídeo (${videoNombre})…`);
+    zip.file(videoNombre, videoFile);
     progreso((marcas.length + 1) / (marcas.length + 2));
     // 3) web generada desde la plantilla
     plog('▸ Generando index.html…');
@@ -325,7 +331,7 @@ document.getElementById('generar').addEventListener('click', async () => {
     }));
     const html = tpl
       .replaceAll('__TITULO__', titulo)
-      .replaceAll('__VIDEO__', 'recorrido.mp4')
+      .replaceAll('__VIDEO__', videoNombre)
       .replaceAll('__POSTER__', fotos[0])
       .replaceAll('__WHATSAPP__', wa)
       .replaceAll('__MARCADORES__', JSON.stringify(datos));
